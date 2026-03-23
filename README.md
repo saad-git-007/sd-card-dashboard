@@ -4,6 +4,10 @@
 
 It is designed for hands-on imaging workflows where a workstation needs direct access to removable USB drives, accurate device visibility, and a simple operator-friendly interface.
 
+## Screenshot
+
+![SD Card Dashboard screenshot](docs/dashboard.png)
+
 ## Overview
 
 This dashboard runs in Docker, serves a browser UI on `http://localhost:8099`, and manages a host-side SD card workflow with a Python backend.
