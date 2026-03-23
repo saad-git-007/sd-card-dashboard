@@ -1,6 +1,6 @@
 # SD Card Dashboard
 
-`SD Card Dashboard` is a localhost-first web UI for backing up Raspberry Pi OS or any other SD cards, shrinking the captured image automatically with PiShrink, and providing ability to flash one or more SD cards in parallel from a clean dashboard with live progress tracking.
+`SD Card Dashboard` is a localhost-first web UI for backing up Raspberry Pi OS or any other SD cards, shrinking the captured image automatically with [PiShrink](https://github.com/Drewsif/PiShrink), and providing ability to flash one or more SD cards in parallel from a clean dashboard with live progress tracking.
 
 It is designed for SDcard backup and flash imaging workflows where a workstation needs direct access to removable USB card reader drives, accurate device visibility, and a simple operator-friendly interface.
 
