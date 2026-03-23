@@ -11,7 +11,7 @@ services:
       - "8099:8080"
     environment:
       PORT: "8080"
-      DEFAULT_DESTINATION_DIR: "/media/intelirain/T9/pi-golden"
+      DEFAULT_DESTINATION_DIR: "/media/username/T9/pi-golden"
       PISHRINK_PATH: "/usr/local/bin/pishrink.sh"
     volumes:
       - /dev:/dev
