@@ -1,8 +1,8 @@
 # SD Card Dashboard
 
-`SD Card Dashboard` is a localhost-first web UI for backing up Raspberry Pi or similar SD cards, shrinking the captured image automatically with PiShrink, and flashing one or more SD cards from a clean dashboard with live activity tracking.
+`SD Card Dashboard` is a localhost-first web UI for backing up Raspberry Pi OS or any other SD cards, shrinking the captured image automatically with PiShrink, and providing ability to flash one or more SD cards in parallel from a clean dashboard with live progress tracking.
 
-It is designed for hands-on imaging workflows where a workstation needs direct access to removable USB drives, accurate device visibility, and a simple operator-friendly interface.
+It is designed for SDcard backup and flash imaging workflows where a workstation needs direct access to removable USB card reader drives, accurate device visibility, and a simple operator-friendly interface.
 
 ## Screenshot
 
@@ -14,20 +14,20 @@ This dashboard runs in Docker, serves a browser UI on `http://localhost:8099`, a
 
 Core workflow:
 
-1. Detect removable USB drives and show them in the dashboard.
+1. Detect removable USB drives or SD card readers and show them in the dashboard.
 2. Capture a backup image from a selected source SD card using `dd`.
 3. Automatically run `pishrink.sh` on the captured image.
 4. Save the resulting image in the configured backup directory.
 5. Write selected images back to one or more detected target cards.
-6. Show live progress, timing, and a shared system log while operations run.
+6. Show live progress, timing, and system log while operations run.
 
 ## Features
 
-- Create backup images directly from removable SD cards.
+- Create backup images directly from SD cards.
 - Automatically shrink captured images with PiShrink.
 - Save images to a configurable backup directory.
 - Default backup directory support through Docker environment variables.
-- Detect removable USB drives and show device paths such as `/dev/sdb`, `/dev/sdc`, and `/dev/sdd`.
+- Detect removable USB drives or SDcard readers and show device paths such as `/dev/sdb`, `/dev/sdc`, and `/dev/sdd`.
 - Show mount points and partition information for each detected card.
 - Protect the active destination drive and system-mounted disks from destructive operations.
 - Write the same image or different images to multiple selected target cards.
@@ -146,7 +146,7 @@ The default runtime settings live in `docker-compose.yml`:
 
 - Host port: `8099`
 - App port inside container: `8080`
-- Default backup directory: `/media/intelirain/T9/pi-golden`
+- Default backup directory: `/media/user-name/T9/pi-golden`
 - PiShrink path in container: `/usr/local/bin/pishrink.sh`
 
 If your backup drive or path is different, update:
@@ -158,7 +158,7 @@ If your backup drive or path is different, update:
 From the project directory:
 
 ```bash
-cd /home/intelirain/Desktop/cam_images_mod_new
+cd /home/username/Desktop/SD_dashboard_folder
 sudo docker compose up --build -d
 ```
 
@@ -208,7 +208,7 @@ This repository includes a boot unit file: `sdcard-dashboard-compose.service`
 Install and enable it:
 
 ```bash
-cd /home/intelirain/Desktop/cam_images_mod_new
+cd /home/username/Desktop/SD_dashboard_folder
 sudo install -m 0644 sdcard-dashboard-compose.service /etc/systemd/system/sdcard-dashboard-compose.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now sdcard-dashboard-compose.service
