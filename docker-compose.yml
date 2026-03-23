@@ -1,0 +1,24 @@
+services:
+  sdcard-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sdcard-dashboard
+    privileged: true
+    user: root
+    restart: unless-stopped
+    ports:
+      - "8099:8080"
+    environment:
+      PORT: "8080"
+      DEFAULT_DESTINATION_DIR: "/media/intelirain/T9/pi-golden"
+      PISHRINK_PATH: "/usr/local/bin/pishrink.sh"
+    volumes:
+      - /dev:/dev
+      - /sys:/sys:ro
+      - /run/udev:/run/udev:ro
+      - /run/dbus:/run/dbus
+      - /media:/media
+      - /mnt:/mnt
+      - /home:/home
+      - /usr/local/bin/pishrink.sh:/usr/local/bin/pishrink.sh:ro

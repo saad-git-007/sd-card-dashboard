@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SD Card Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <h1>SD Card Dashboard</h1>
+          <div id="system-stats" class="system-stat-grid"></div>
+          <div id="warning-list" class="warning-list"></div>
+          <p class="hero-text">
+            Capture backup images of SD cards, shrink backed up images in size
+            automatically with PiShrink, and write images to multiple detected
+            sd-cards with live progress bar.
+          </p>
+        </div>
+      </header>
+
+      <main class="dashboard-grid">
+        <section class="panel">
+          <div class="section-head">
+            <h2>Create Backup Image</h2>
+          </div>
+
+          <form id="backup-form" class="stack">
+            <div class="field">
+              <label for="source-device">Source SD Card</label>
+              <select id="source-device"></select>
+            </div>
+
+            <div class="field">
+              <label for="camera-name">Backup Image Name</label>
+              <input
+                id="camera-name"
+                type="text"
+                placeholder="backup_image_1"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="field">
+              <label for="backup-destination-dir">Backup Destination Directory</label>
+              <input
+                id="backup-destination-dir"
+                type="text"
+                placeholder="/media/intelirain/T9/pi-golden"
+                autocomplete="off"
+              />
+            </div>
+
+            <button id="backup-submit" class="button" type="submit">
+              Capture and Shrink Backup
+            </button>
+          </form>
+        </section>
+
+        <section class="panel directory-panel">
+          <div class="section-head">
+            <h2>Directory Containing Backup Images</h2>
+          </div>
+
+          <div class="stack directory-panel-content">
+            <div class="field wide">
+              <label for="destination-dir">Directory Path</label>
+              <input
+                id="destination-dir"
+                type="text"
+                placeholder="/media/intelirain/T9/pi-golden"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="directory-panel-actions">
+              <button id="refresh-button" class="button" type="button">
+                Refresh Devices
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel panel-span-2">
+          <div class="section-head">
+            <div>
+              <p class="panel-label">Detected Cards</p>
+              <h2>USB Drives</h2>
+            </div>
+            <div class="section-actions">
+              <p class="section-note">
+                Protected drives are shown but blocked from destructive actions.
+              </p>
+              <button id="eject-all-button" class="button top-action-button" type="button">
+                Eject All Cards
+              </button>
+            </div>
+          </div>
+
+          <div id="device-grid" class="device-grid">
+            <div class="empty-state card-placeholder">
+              No removable devices detected.
+            </div>
+          </div>
+        </section>
+
+        <section class="panel panel-span-2">
+          <div class="section-head">
+            <h2>Write Backup to Cards</h2>
+          </div>
+
+          <form id="flash-form" class="flash-summary">
+            <div class="summary-line">
+              <span>Selected backups:</span>
+              <strong id="selected-image-name">None selected</strong>
+            </div>
+            <div class="summary-line">
+              <span>Selected targets:</span>
+              <strong id="selected-target-count">0 cards</strong>
+            </div>
+            <div id="flash-plan-list" class="flash-plan-list">
+              <div class="flash-plan-empty">Select cards to see which backup will write to each target.</div>
+            </div>
+            <button id="flash-submit" class="button button-accent" type="submit">
+              Write Selected Backup
+            </button>
+          </form>
+        </section>
+
+        <section class="panel panel-span-2">
+          <div class="section-head">
+            <h2>Live Activity</h2>
+            <div class="section-actions">
+              <button id="show-system-log-button" class="button-ghost" type="button" hidden>
+                Show System Log
+              </button>
+            </div>
+          </div>
+          <div id="live-activity-shell" class="live-activity-shell">
+            <div id="job-list" class="job-list">
+              <div class="empty-state card-placeholder">No jobs started yet.</div>
+            </div>
+            <aside id="system-log-panel" class="system-log-panel">
+              <div class="system-log-header">
+                <div>
+                  <div class="system-log-title">System Log</div>
+                  <div class="system-log-subtitle">Merged activity output across current jobs</div>
+                </div>
+                <div class="system-log-actions">
+                  <button id="freeze-system-log-button" class="button-ghost" type="button">
+                    Freeze Log
+                  </button>
+                  <button id="copy-system-log-button" class="button-ghost" type="button">
+                    Copy Log
+                  </button>
+                  <button id="toggle-system-log-button" class="button-ghost" type="button">
+                    Hide System Log
+                  </button>
+                  <button id="clear-all-logs-button" class="button-ghost" type="button">
+                    Clear Log
+                  </button>
+                </div>
+              </div>
+              <div id="system-log-body" class="system-log-body">
+                <div class="log-empty">Listening for system activity...</div>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
