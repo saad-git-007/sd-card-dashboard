@@ -140,6 +140,55 @@ Update this to match your real storage device if needed:
 sudo mkdir -p /media/$USER/T9/pi-golden
 ```
 
+## Setup Instructions for Linux OS
+
+After installing all prerequisites, clone the repository, place it in the expected folder path, review the default backup destination, and then launch the dashboard.
+
+### 1. Clone the repository
+
+```bash
+mkdir -p /home/username/Desktop
+git clone https://github.com/saad-git-007/sd-card-dashboard.git /home/username/Desktop/SD_dashboard_folder
+```
+
+### 2. Enter the project directory
+
+```bash
+cd /home/username/Desktop/SD_dashboard_folder
+```
+
+### 3. Review the default backup destination
+
+Open `docker-compose.yml` and update `DEFAULT_DESTINATION_DIR` if your backup drive or mount path is different from the example used in this repository.
+
+### 4. Build and start the dashboard
+
+```bash
+sudo docker compose up --build -d
+```
+
+### 5. Confirm the container is running
+
+```bash
+sudo docker compose ps
+curl http://localhost:8099/healthz
+```
+
+### 6. Open the dashboard
+
+```text
+http://localhost:8099
+```
+
+### 7. Optional: enable automatic startup on boot with systemd
+
+```bash
+sudo install -m 0644 sdcard-dashboard-compose.service /etc/systemd/system/sdcard-dashboard-compose.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now sdcard-dashboard-compose.service
+sudo systemctl status sdcard-dashboard-compose.service
+```
+
 ## Configuration
 
 The default runtime settings live in `docker-compose.yml`:
@@ -152,28 +201,6 @@ The default runtime settings live in `docker-compose.yml`:
 If your backup drive or path is different, update:
 
 - `DEFAULT_DESTINATION_DIR` in `docker-compose.yml`
-
-## Run the Dashboard
-
-From the project directory:
-
-```bash
-cd /home/username/Desktop/SD_dashboard_folder
-sudo docker compose up --build -d
-```
-
-Check the service:
-
-```bash
-sudo docker compose ps
-curl http://localhost:8099/healthz
-```
-
-Open the dashboard:
-
-```text
-http://localhost:8099
-```
 
 ## Common Docker Commands
 
