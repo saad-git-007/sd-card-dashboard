@@ -7,8 +7,8 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/home/intelirain/Desktop/cam_images_mod_new
-Environment=COMPOSE_PROJECT_NAME=cam_images_mod_new
+WorkingDirectory=/home/username/Desktop/SD_dashboard_folder
+Environment=COMPOSE_PROJECT_NAME=SD_dashboard_folder
 ExecStart=/usr/bin/docker compose up -d --remove-orphans
 ExecReload=/usr/bin/docker compose up -d --remove-orphans
 ExecStop=/usr/bin/docker compose down
