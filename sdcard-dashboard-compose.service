@@ -1,17 +1,20 @@
 [Unit]
 Description=SD Card Dashboard Docker Compose Stack
-Requires=docker.service
-After=docker.service network-online.target
-Wants=network-online.target
+After=docker.service docker.socket network-online.target
+Wants=docker.service docker.socket network-online.target
+ConditionPathExists=/home/username/Desktop/SD_dashboard_folder/docker-compose.yml
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/home/username/Desktop/SD_dashboard_folder
 Environment=COMPOSE_PROJECT_NAME=SD_dashboard_folder
+ExecStartPre=/bin/sh -c "for i in $(seq 1 30); do /usr/bin/docker info >/dev/null 2>&1 && exit 0; sleep 2; done; echo Docker daemon did not become ready in time. >&2; exit 1"
 ExecStart=/usr/bin/docker compose up -d --remove-orphans
 ExecReload=/usr/bin/docker compose up -d --remove-orphans
 ExecStop=/usr/bin/docker compose down
+Restart=on-failure
+RestartSec=15
 TimeoutStartSec=0
 
 [Install]
