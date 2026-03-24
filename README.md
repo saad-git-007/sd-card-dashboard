@@ -286,6 +286,49 @@ sudo docker compose ps
 curl http://localhost:8099/healthz
 ```
 
+### Docker is active, but /run/docker.sock still refuses connections after reboot
+
+On some Ubuntu systems, Docker can appear active before its API socket becomes fully usable. If that happens, verify `containerd` is enabled and that Docker has an override forcing it to wait for `containerd.service` and `docker.socket`.
+
+Check the current state:
+
+```bash
+sudo systemctl status docker containerd --no-pager
+sudo systemctl is-enabled containerd.service
+sudo systemctl cat docker.service
+```
+
+If needed, enable `containerd`:
+
+```bash
+sudo systemctl enable containerd.service
+```
+
+If needed, create or update the Docker override:
+
+```bash
+sudo mkdir -p /etc/systemd/system/docker.service.d
+sudo nano /etc/systemd/system/docker.service.d/override.conf
+```
+
+Use:
+
+```ini
+[Unit]
+After=containerd.service network-online.target docker.socket
+Requires=containerd.service docker.socket
+Wants=network-online.target
+```
+
+Then reload and restart Docker:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+```
+
+This repository's `sdcard-dashboard-compose.service` already includes an `ExecStartPre` wait loop that waits for `docker info` to succeed before starting the dashboard, which helps avoid dashboard startup races even when Docker is slower to become ready after boot.
+
 ### Port `8099` is already in use
 
 Change the published port in `docker-compose.yml`, for example:
