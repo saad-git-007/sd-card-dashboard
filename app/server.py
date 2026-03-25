@@ -34,7 +34,7 @@ PISHRINK_PATH = os.environ.get("PISHRINK_PATH", "/usr/local/bin/pishrink.sh")
 BASE_ENV = os.environ.copy()
 BASE_ENV.update({"LANG": "C", "LC_ALL": "C", "LANGUAGE": "C"})
 
-MAX_JOB_LOGS = 160
+MAX_JOB_LOGS = 1000
 DD_PROGRESS_PATTERN = re.compile(
     r"(?P<bytes>[\d,]+)\s+bytes.*copied,\s*(?P<seconds>[\d.]+)\s*s"
 )
@@ -760,6 +760,25 @@ def device_reader_key(device_path):
     return resolved_text
 
 
+def reader_group_key(device_path):
+    return device_reader_key(device_path) or f"path:{device_path}"
+
+
+def group_device_paths_by_reader(device_paths):
+    ordered_groups = []
+    groups_by_key = {}
+    for device_path in device_paths:
+        group_key = reader_group_key(device_path)
+        group = groups_by_key.get(group_key)
+        if group is None:
+            group = {"reader_key": group_key, "device_paths": []}
+            groups_by_key[group_key] = group
+            ordered_groups.append(group)
+        if device_path not in group["device_paths"]:
+            group["device_paths"].append(device_path)
+    return ordered_groups
+
+
 def busy_reader_siblings(device_path, job_manager, current_job_id=None):
     reader_key = device_reader_key(device_path)
     if not reader_key:
@@ -875,17 +894,7 @@ def format_device_as_fat32(device_info, label, log_callback=None):
     return partition_path
 
 
-def eject_device(device_info, log_callback=None, allow_power_off=True, skip_reason=None):
-    device_path = device_info["path"]
-    unmount_device(device_info, log_callback, refresh_kernel=False)
-    if not allow_power_off:
-        if log_callback and skip_reason:
-            log_callback(skip_reason)
-        return {
-            "device_path": device_path,
-            "powered_off": False,
-            "warning": skip_reason or "Reader power-off was skipped.",
-        }
+def power_off_device(device_path, log_callback=None):
     if log_callback:
         log_callback(f"Ejecting {device_path}")
     try:
@@ -909,6 +918,20 @@ def eject_device(device_info, log_callback=None, allow_power_off=True, skip_reas
     if log_callback and result.stdout.strip():
         log_callback(result.stdout.strip())
     return {"device_path": device_path, "powered_off": True, "warning": None}
+
+
+def eject_device(device_info, log_callback=None, allow_power_off=True, skip_reason=None):
+    device_path = device_info["path"]
+    unmount_device(device_info, log_callback, refresh_kernel=False)
+    if not allow_power_off:
+        if log_callback and skip_reason:
+            log_callback(skip_reason)
+        return {
+            "device_path": device_path,
+            "powered_off": False,
+            "warning": skip_reason or "Reader power-off was skipped.",
+        }
+    return power_off_device(device_path, log_callback=log_callback)
 
 
 def pishrink_progress_hint(line):
@@ -1354,31 +1377,64 @@ def clear_card(job_id, device_path, destination_dir, label, job_manager):
 
 def eject_cards(job_id, device_paths, destination_dir, job_manager):
     require_root()
+    grouped_devices = group_device_paths_by_reader(device_paths)
     total_devices = len(device_paths)
+    total_groups = len(grouped_devices) or 1
     warnings = []
-    for index, device_path in enumerate(device_paths, start=1):
-        device_info = validate_candidate_device(device_path, destination_dir)
-        sibling_busy_paths = busy_reader_siblings(device_path, job_manager, current_job_id=job_id)
+
+    for index, group in enumerate(grouped_devices, start=1):
+        group_paths = group["device_paths"]
+        device_infos = [validate_candidate_device(path, destination_dir) for path in group_paths]
+        group_label = ", ".join(group_paths)
         job_manager.update_progress(
             job_id,
-            ((index - 1) / total_devices) * 100.0,
-            f"Ejecting {device_path}",
+            ((index - 1) / total_groups) * 100.0,
+            f"Ejecting {group_label}",
             "Ejecting cards",
         )
-        skip_reason = None
+
+        sibling_busy_paths = []
+        for device_path in group_paths:
+            for sibling_path in busy_reader_siblings(
+                device_path,
+                job_manager,
+                current_job_id=job_id,
+            ):
+                if sibling_path in group_paths or sibling_path in sibling_busy_paths:
+                    continue
+                sibling_busy_paths.append(sibling_path)
+
+        for device_info in device_infos:
+            unmount_device(
+                device_info,
+                lambda line: job_manager.append_log(job_id, line),
+                refresh_kernel=False,
+            )
+
         if sibling_busy_paths:
             skip_reason = (
-                f"{device_path} was unmounted, but reader power-off was skipped because "
+                f"{group_label} were unmounted, but reader power-off was skipped because "
                 f"other slot(s) are still active: {', '.join(sibling_busy_paths)}."
             )
-        result = eject_device(
-            device_info,
+            job_manager.append_log(job_id, skip_reason)
+            warnings.append(
+                {
+                    "device_paths": list(group_paths),
+                    "powered_off": False,
+                    "warning": skip_reason,
+                }
+            )
+            continue
+
+        representative_path = device_infos[0]["path"]
+        result = power_off_device(
+            representative_path,
             lambda line: job_manager.append_log(job_id, line),
-            allow_power_off=not sibling_busy_paths,
-            skip_reason=skip_reason,
         )
         if result and result.get("warning"):
-            warnings.append(result)
+            warning_entry = dict(result)
+            warning_entry["device_paths"] = list(group_paths)
+            warnings.append(warning_entry)
 
     message = f"Ejected {total_devices} card(s)"
     if warnings:
@@ -1430,6 +1486,7 @@ def flash_targets(job_id, targets, destination_dir, job_manager):
                 "image_path": str(image),
                 "image_name": image.name,
                 "image_size": image_size,
+                "reader_key": reader_group_key(info["path"]),
                 "status": "queued",
                 "phase": "Queued",
                 "message": f"Queued image file {image.name}",
@@ -1453,6 +1510,9 @@ def flash_targets(job_id, targets, destination_dir, job_manager):
     )
 
     lock = threading.Lock()
+    reader_prep_locks = {}
+    for target in prepared_targets:
+        reader_prep_locks.setdefault(target["reader_key"], threading.Lock())
 
     def update_target(target_device_path, **updates):
         with lock:
@@ -1463,33 +1523,54 @@ def flash_targets(job_id, targets, destination_dir, job_manager):
         device_name = target_info["device_name"]
         image = Path(target_info["image_path"])
         image_size = target_info["image_size"]
+        prep_lock = reader_prep_locks[target_info["reader_key"]]
         try:
             if target_info["size_bytes"] < image_size:
                 raise RuntimeError(
                     f"{device_path} is too small for {image.name} ({human_bytes(image_size)})."
                 )
 
-            live_info = validate_candidate_device(device_path, destination_dir)
-            update_target(
-                device_path,
-                status="running",
-                phase="Preparing target",
-                message=f"Unmounting target card for {image.name}",
-                progress=0.0,
-            )
-            unmount_device(live_info, lambda line: job_manager.append_log(job_id, f"[{device_name}] {line}"))
-
-            if target_info["wipe_first"]:
+            if not prep_lock.acquire(blocking=False):
                 update_target(
                     device_path,
-                    phase="Deleting partitions",
-                    message="Deleting existing partitions",
+                    status="running",
+                    phase="Waiting for prep slot",
+                    message="Waiting for shared reader prep slot",
                     progress=0.0,
                 )
-                clear_device_partitions(
+                job_manager.append_log(
+                    job_id,
+                    f"[{device_name}] Waiting for shared reader prep slot",
+                )
+                prep_lock.acquire()
+
+            try:
+                live_info = validate_candidate_device(device_path, destination_dir)
+                update_target(
+                    device_path,
+                    status="running",
+                    phase="Preparing target",
+                    message=f"Unmounting target card for {image.name}",
+                    progress=0.0,
+                )
+                unmount_device(
                     live_info,
                     lambda line: job_manager.append_log(job_id, f"[{device_name}] {line}"),
                 )
+
+                if target_info["wipe_first"]:
+                    update_target(
+                        device_path,
+                        phase="Deleting partitions",
+                        message="Deleting existing partitions",
+                        progress=0.0,
+                    )
+                    clear_device_partitions(
+                        live_info,
+                        lambda line: job_manager.append_log(job_id, f"[{device_name}] {line}"),
+                    )
+            finally:
+                prep_lock.release()
 
             update_target(
                 device_path,

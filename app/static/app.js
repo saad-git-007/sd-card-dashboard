@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("backup-destination-dir").value = appState.destinationDir;
   }
   refreshState();
-  window.setInterval(refreshState, 2500);
+  window.setInterval(refreshState, 4000);
 });
 
 function bindEvents() {
