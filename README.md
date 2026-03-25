@@ -274,60 +274,84 @@ This is more reliable than relying only on Docker container restart policy becau
 Try:
 
 ```bash
-sudo systemctl restart docker.socket docker
+sudo systemctl restart docker
 sudo systemctl restart sdcard-dashboard-compose.service
 ```
 
 Then check:
 
 ```bash
-sudo systemctl status sdcard-dashboard-compose.service --no-pager
+sudo systemctl status docker sdcard-dashboard-compose.service --no-pager
+cd /home/username/Desktop/SD_dashboard_folder
 sudo docker compose ps
 curl http://localhost:8099/healthz
 ```
 
 ### Docker is active, but /run/docker.sock still refuses connections after reboot
 
-On some Ubuntu systems, Docker can appear active before its API socket becomes fully usable. If that happens, verify `containerd` is enabled and that Docker has an override forcing it to wait for `containerd.service` and `docker.socket`.
+On some Ubuntu systems, Docker can appear active after boot while its API socket is still unusable. If `docker info` fails even though `docker.service` shows `active`, the more reliable fix is to stop relying on socket activation with `-H fd://` and make Docker bind `/run/docker.sock` directly.
 
 Check the current state:
 
 ```bash
 sudo systemctl status docker containerd --no-pager
-sudo systemctl is-enabled containerd.service
+sudo docker info
 sudo systemctl cat docker.service
 ```
 
-If needed, enable `containerd`:
+Make sure `containerd` is enabled:
 
 ```bash
 sudo systemctl enable containerd.service
 ```
 
-If needed, create or update the Docker override:
+Then replace the Docker host unit with a direct Unix-socket version:
 
 ```bash
-sudo mkdir -p /etc/systemd/system/docker.service.d
-sudo nano /etc/systemd/system/docker.service.d/override.conf
-```
-
-Use:
-
-```ini
+sudo tee /etc/systemd/system/docker.service > /dev/null <<'EOF'
 [Unit]
-After=containerd.service network-online.target docker.socket
-Requires=containerd.service docker.socket
-Wants=network-online.target
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network-online.target nss-lookup.target firewalld.service containerd.service time-set.target
+Wants=network-online.target containerd.service
+StartLimitBurst=3
+StartLimitIntervalSec=60
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/dockerd -H unix:///run/docker.sock --containerd=/run/containerd/containerd.sock
+ExecReload=/bin/kill -s HUP $MAINPID
+TimeoutStartSec=0
+RestartSec=2
+Restart=always
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
+Delegate=yes
+KillMode=process
+OOMScoreAdjust=-500
+
+[Install]
+WantedBy=multi-user.target
+EOF
 ```
 
-Then reload and restart Docker:
+Disable the old socket-activation path and restart Docker:
 
 ```bash
+sudo systemctl disable --now docker.socket
 sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
 
-This repository's `sdcard-dashboard-compose.service` already includes an `ExecStartPre` wait loop that waits for `docker info` to succeed before starting the dashboard, which helps avoid dashboard startup races even when Docker is slower to become ready after boot.
+Then restart the dashboard boot service:
+
+```bash
+sudo systemctl restart sdcard-dashboard-compose.service
+curl http://localhost:8099/healthz
+```
+
+This repository's `sdcard-dashboard-compose.service` is set up to depend on `docker.service` and includes an `ExecStartPre` wait loop that waits for `docker info` to succeed before starting the dashboard.
 
 ### Port `8099` is already in use
 
